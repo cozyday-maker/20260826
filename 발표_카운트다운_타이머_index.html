@@ -1,0 +1,460 @@
+<title>발표 카운트다운</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #000000;
+    --ink: #ffffff;
+    --muted: #8c8c8c;
+    --muted-dim: #565656;
+    --accent: #e50914;
+    --accent-bright: #ff1f2e;
+    --accent-dim: #831010;
+    --accent-glow: rgba(229, 9, 20, 0.38);
+    --surface: #141414;
+    --surface-2: #1f1f1f;
+    --surface-hover: #2a2a2a;
+    --surface-border: #333333;
+    --focus-ring: #ffffff;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  body {
+    font-family: 'Oswald', 'Helvetica Neue', Arial, sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+  }
+
+  .stage {
+    position: relative;
+    height: 100vh;
+    height: 100dvh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    isolation: isolate;
+  }
+
+  /* ambient red glow behind the number, Netflix key-art style */
+  .stage::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(ellipse 55% 42% at 50% 46%, var(--accent-glow), transparent 70%);
+    opacity: 0.55;
+    transition: opacity 0.4s ease;
+  }
+  .stage.critical::before { opacity: 0.9; }
+  .stage.finished::before { opacity: 1; animation: alarmPulse 1.1s ease-in-out infinite; }
+
+  .eyebrow {
+    font-family: 'Oswald', 'Helvetica Neue', Arial, sans-serif;
+    font-size: clamp(13px, 1.6vw, 18px);
+    font-weight: 600;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 clamp(8px, 2vh, 22px) 0;
+    transition: color 0.3s ease;
+  }
+  .stage.critical .eyebrow { color: var(--accent-bright); }
+  .stage.finished .eyebrow { color: var(--accent-bright); }
+
+  .timer {
+    font-family: 'Anton', Impact, 'Arial Narrow', sans-serif;
+    font-weight: 400;
+    font-size: clamp(150px, 28vw, 440px);
+    line-height: 0.92;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    margin: 0;
+    text-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
+    transition: color 0.15s ease;
+  }
+
+  .stage.critical .timer {
+    color: var(--accent);
+    animation: urgentBlink 0.55s steps(1, end) infinite;
+  }
+
+  .stage.finished .timer {
+    opacity: 0;
+  }
+
+  /* stack the digits and the end message in the same grid cell so
+     neither one shifts layout or collides with the controls below */
+  .timer-wrap {
+    display: grid;
+    place-items: center;
+  }
+  .timer-wrap > * {
+    grid-area: 1 / 1;
+    margin: 0;
+  }
+
+  .end-message {
+    font-family: 'Anton', Impact, sans-serif;
+    font-size: clamp(56px, 9vw, 150px);
+    letter-spacing: 0.02em;
+    color: var(--accent-bright);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+  }
+  .stage.finished .end-message {
+    opacity: 1;
+    animation: urgentBlink 0.9s steps(1, end) infinite;
+  }
+
+  @keyframes urgentBlink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0.22; }
+  }
+
+  @keyframes alarmPulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+
+  .progress-track {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 6px;
+    background: var(--surface);
+  }
+  .progress-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+    transform-origin: left;
+    transition: width 1s linear, background 0.3s ease;
+  }
+  .stage.critical .progress-fill,
+  .stage.finished .progress-fill {
+    background: var(--accent-bright);
+  }
+
+  .controls {
+    position: absolute;
+    bottom: clamp(28px, 6vh, 64px);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(12px, 2vh, 18px);
+    width: min(720px, 92vw);
+  }
+
+  .row {
+    display: flex;
+    justify-content: center;
+    gap: clamp(8px, 1.6vw, 14px);
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  button {
+    font-family: 'Oswald', 'Helvetica Neue', Arial, sans-serif;
+    cursor: pointer;
+    border: 1.5px solid var(--surface-border);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 6px;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease, filter 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:hover { background: var(--surface-hover); border-color: #4a4a4a; filter: brightness(1.15); }
+  button:active { transform: scale(0.96); }
+  button:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+
+  .chip {
+    padding: 10px 22px;
+    font-size: clamp(14px, 1.6vw, 17px);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--surface-2);
+    border-color: var(--accent);
+    color: var(--ink);
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+
+  .primary-actions { gap: clamp(10px, 2vw, 18px); }
+
+  .btn-main {
+    padding: 14px 40px;
+    font-size: clamp(16px, 2vw, 20px);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    min-width: 140px;
+  }
+
+  .btn-start {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .btn-start:hover { background: var(--accent-bright); border-color: var(--accent-bright); filter: none; }
+  .btn-start:disabled, .btn-stop:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    filter: none;
+    transform: none;
+  }
+
+  .btn-stop { background: var(--surface-2); }
+  .btn-reset { background: transparent; border-color: var(--muted-dim); color: var(--muted); }
+  .btn-reset:hover { color: var(--ink); border-color: var(--ink); }
+
+  .hint {
+    font-size: 12px;
+    color: var(--muted-dim);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stage.critical .timer,
+    .stage.finished .end-message,
+    .stage.finished::before {
+      animation: none;
+    }
+  }
+
+  @media (max-height: 560px) {
+    .controls { position: static; margin-top: 18px; }
+    .stage { justify-content: flex-start; padding-top: 6vh; }
+  }
+</style>
+
+<div class="stage" id="stage">
+  <p class="eyebrow" id="eyebrow">발표 종료까지 남은 시간</p>
+  <div class="timer-wrap">
+    <h1 class="timer" id="timerDisplay">05:00</h1>
+    <p class="end-message" id="endMessage">시간 종료!</p>
+  </div>
+
+  <div class="controls">
+    <div class="row" role="group" aria-label="빠른 시간 설정">
+      <button class="chip" data-minutes="1" aria-pressed="false">1분</button>
+      <button class="chip" data-minutes="3" aria-pressed="false">3분</button>
+      <button class="chip" data-minutes="5" aria-pressed="true">5분</button>
+    </div>
+    <div class="row primary-actions" role="group" aria-label="타이머 제어">
+      <button class="btn-main btn-start" id="startBtn">시작</button>
+      <button class="btn-main btn-stop" id="stopBtn" disabled>정지</button>
+      <button class="btn-main btn-reset" id="resetBtn">리셋</button>
+    </div>
+    <p class="hint">Space 시작·정지 &nbsp;·&nbsp; R 리셋</p>
+  </div>
+
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var stage = document.getElementById('stage');
+  var display = document.getElementById('timerDisplay');
+  var eyebrow = document.getElementById('eyebrow');
+  var endMessage = document.getElementById('endMessage');
+  var progressFill = document.getElementById('progressFill');
+  var startBtn = document.getElementById('startBtn');
+  var stopBtn = document.getElementById('stopBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+
+  var totalSeconds = 5 * 60;
+  var remaining = totalSeconds;
+  var running = false;
+  var tickHandle = null;
+  var deadline = null; // timestamp-based, avoids drift
+
+  var audioCtx = null;
+  var alarmLoopHandle = null;
+  var alarmRepeats = 0;
+  var MAX_ALARM_REPEATS = 8;
+
+  function ensureAudio() {
+    if (!audioCtx) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) audioCtx = new Ctx();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function beep(atOffset, freq, dur) {
+    if (!audioCtx) return;
+    var t0 = audioCtx.currentTime + atOffset;
+    var osc = audioCtx.createOscillator();
+    var gain = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(0.22, t0 + 0.02);
+    gain.gain.setValueAtTime(0.22, t0 + dur - 0.03);
+    gain.gain.linearRampToValueAtTime(0, t0 + dur);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+  }
+
+  function playAlarmBurst() {
+    if (!audioCtx) return;
+    beep(0, 1046, 0.16);
+    beep(0.28, 1046, 0.16);
+    beep(0.56, 1046, 0.16);
+  }
+
+  function startAlarm() {
+    ensureAudio();
+    alarmRepeats = 0;
+    playAlarmBurst();
+    alarmRepeats++;
+    alarmLoopHandle = setInterval(function () {
+      if (alarmRepeats >= MAX_ALARM_REPEATS) { stopAlarm(); return; }
+      playAlarmBurst();
+      alarmRepeats++;
+    }, 2000);
+  }
+
+  function stopAlarm() {
+    if (alarmLoopHandle) { clearInterval(alarmLoopHandle); alarmLoopHandle = null; }
+  }
+
+  function format(sec) {
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+  }
+
+  function render() {
+    display.textContent = format(Math.max(remaining, 0));
+    var frac = totalSeconds > 0 ? Math.max(remaining, 0) / totalSeconds : 0;
+    progressFill.style.width = (frac * 100) + '%';
+
+    var isCritical = remaining > 0 && remaining < 10;
+    var isFinished = remaining <= 0;
+
+    stage.classList.toggle('critical', isCritical && running);
+    stage.classList.toggle('finished', isFinished);
+
+    if (isFinished) {
+      eyebrow.textContent = '시간이 종료되었습니다';
+    } else if (isCritical) {
+      eyebrow.textContent = '곧 종료됩니다';
+    } else {
+      eyebrow.textContent = '발표 종료까지 남은 시간';
+    }
+  }
+
+  function tick() {
+    var msLeft = deadline - Date.now();
+    remaining = Math.max(Math.ceil(msLeft / 1000), 0);
+    render();
+    if (remaining <= 0) {
+      finish();
+    }
+  }
+
+  function finish() {
+    running = false;
+    clearInterval(tickHandle);
+    tickHandle = null;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    startAlarm();
+  }
+
+  function start() {
+    if (running || remaining <= 0) return;
+    ensureAudio();
+    stopAlarm();
+    running = true;
+    deadline = Date.now() + remaining * 1000;
+    tickHandle = setInterval(tick, 200);
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    render();
+  }
+
+  function stop() {
+    if (!running) { stopAlarm(); return; }
+    running = false;
+    clearInterval(tickHandle);
+    tickHandle = null;
+    stopAlarm();
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    render();
+  }
+
+  function reset() {
+    running = false;
+    if (tickHandle) { clearInterval(tickHandle); tickHandle = null; }
+    stopAlarm();
+    remaining = totalSeconds;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    render();
+  }
+
+  function setPreset(minutes, btn) {
+    running = false;
+    if (tickHandle) { clearInterval(tickHandle); tickHandle = null; }
+    stopAlarm();
+    totalSeconds = minutes * 60;
+    remaining = totalSeconds;
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    chips.forEach(function (c) { c.setAttribute('aria-pressed', c === btn ? 'true' : 'false'); });
+    render();
+  }
+
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      setPreset(parseInt(chip.dataset.minutes, 10), chip);
+    });
+  });
+
+  startBtn.addEventListener('click', start);
+  stopBtn.addEventListener('click', stop);
+  resetBtn.addEventListener('click', reset);
+
+  document.addEventListener('keydown', function (e) {
+    if (e.code === 'Space') {
+      e.preventDefault();
+      running ? stop() : start();
+    } else if (e.key === 'r' || e.key === 'R') {
+      reset();
+    }
+  });
+
+  render();
+})();
+</script>
